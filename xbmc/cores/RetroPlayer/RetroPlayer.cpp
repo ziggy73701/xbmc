@@ -35,6 +35,7 @@
 #include "games/addons/savestates/Savestate.h"
 #include "games/addons/savestates/SavestateUtils.h"
 #include "games/addons/GameClient.h"
+#include "games/addons/GameClientTiming.h" //! @todo
 #include "games/dialogs/osd/DialogGameVideoSelect.h"
 #include "games/ports/PortManager.h"
 #include "games/tags/GameInfoTag.h"
@@ -46,6 +47,7 @@
 #include "guilib/WindowIDs.h"
 #include "input/Action.h"
 #include "input/ActionIDs.h"
+#include "settings/GameSettings.h"
 #include "settings/MediaSettings.h"
 #include "threads/SingleLock.h"
 #include "utils/JobManager.h"
@@ -62,7 +64,7 @@ using namespace RETRO;
 
 CRetroPlayer::CRetroPlayer(IPlayerCallback& callback) :
   IPlayer(callback),
-  m_renderManager(new CRPRenderManager(m_clock, this)),
+  m_renderManager(new CRPRenderManager),
   m_processInfo(CProcessInfo::CreateInstance())
 {
   m_processInfo->SetDataCache(&CServiceBroker::GetDataCacheCore());
@@ -92,11 +94,6 @@ bool CRetroPlayer::OpenFile(const CFileItem& file, const CPlayerOptions& options
   // Reset game settings
   CMediaSettings::GetInstance().GetCurrentGameSettings() = CMediaSettings::GetInstance().GetDefaultGameSettings();
 
-  //! @todo - Remove this when RetroPlayer has a renderer
-  CVideoSettings &videoSettings = CMediaSettings::GetInstance().GetCurrentVideoSettings();
-  videoSettings.m_ScalingMethod = CMediaSettings::GetInstance().GetCurrentGameSettings().ScalingMethod();
-  videoSettings.m_ViewMode = CMediaSettings::GetInstance().GetCurrentGameSettings().ViewMode();
-
   CSingleLock lock(m_mutex);
 
   if (IsPlaying())
@@ -123,7 +120,7 @@ bool CRetroPlayer::OpenFile(const CFileItem& file, const CPlayerOptions& options
     if (m_gameClient->Initialize())
     {
       m_audio.reset(new CRetroPlayerAudio(*m_processInfo));
-      m_video.reset(new CRetroPlayerVideo(*m_renderManager, *m_processInfo, m_clock));
+      m_video.reset(new CRetroPlayerVideo(*m_renderManager, *m_processInfo));
       m_input.reset(new CRetroPlayerInput(CServiceBroker::GetPeripherals()));
 
       if (!fileCopy.GetPath().empty())
@@ -178,6 +175,7 @@ bool CRetroPlayer::OpenFile(const CFileItem& file, const CPlayerOptions& options
     SetSpeedInternal(1.0);
     m_callback.OnPlayBackStarted(fileCopy);
     m_autoSave.reset(new CRetroPlayerAutoSave(*m_gameClient));
+    m_processInfo->SetVideoFps(static_cast<float>(m_gameClient->Timing().GetFrameRate()));
   }
   else
   {
@@ -491,90 +489,43 @@ void CRetroPlayer::FrameMove()
 
 void CRetroPlayer::Render(bool clear, uint32_t alpha /* = 255 */, bool gui /* = true */)
 {
-  CGUIGameControlManager &gameControls = CServiceBroker::GetGameServices().GameControls();
-
-  ESCALINGMETHOD scalingMedthod = m_renderManager->GetScalingMethod();
-  ViewMode viewMode = m_renderManager->GetRenderViewMode();
-
-  if (gameControls.IsControlActive())
+  if (gui)
   {
-    const CGUIRenderSettings &renderSettings = gameControls.GetRenderSettings();
-    m_renderManager->SetScalingMethod(renderSettings.GetScalingMethod());
-    m_renderManager->SetRenderViewMode(renderSettings.GetRenderViewMode());
-  }
+    CGUIGameControlManager &gameControls = CServiceBroker::GetGameServices().GameControls();
 
-  m_renderManager->Render(clear, 0, alpha, gui);
+    ESCALINGMETHOD scalingMedthod = m_renderManager->GetScalingMethod();
+    ViewMode viewMode = m_renderManager->GetRenderViewMode();
 
-  if (gameControls.IsControlActive())
-  {
-    m_renderManager->SetScalingMethod(scalingMedthod);
-    m_renderManager->SetRenderViewMode(viewMode);
+    if (gameControls.IsControlActive())
+    {
+      const CGUIRenderSettings &renderSettings = gameControls.GetRenderSettings();
+      m_renderManager->SetScalingMethod(renderSettings.GetScalingMethod());
+      m_renderManager->SetRenderViewMode(renderSettings.GetRenderViewMode());
+    }
+
+    m_renderManager->Render(clear, alpha);
+
+    if (gameControls.IsControlActive())
+    {
+      m_renderManager->SetScalingMethod(scalingMedthod);
+      m_renderManager->SetRenderViewMode(viewMode);
+    }
   }
 }
 
 void CRetroPlayer::FlushRenderer()
 {
-  m_renderManager->Flush(true);
-}
-
-void CRetroPlayer::SetRenderViewMode(int mode)
-{
-  m_renderManager->SetViewMode(mode);
-}
-
-float CRetroPlayer::GetRenderAspectRatio()
-{
-  return m_renderManager->GetAspectRatio();
+  m_renderManager->Flush();
 }
 
 void CRetroPlayer::TriggerUpdateResolution()
 {
-  m_renderManager->TriggerUpdateResolution(0.0f, 0, 0);
+  m_renderManager->TriggerUpdateResolution();
 }
 
 bool CRetroPlayer::IsRenderingVideo()
 {
   return m_renderManager->IsConfigured();
-}
-
-bool CRetroPlayer::Supports(EINTERLACEMETHOD method)
-{
-  return m_processInfo->Supports(method);
-}
-
-EINTERLACEMETHOD CRetroPlayer::GetDeinterlacingMethodDefault()
-{
-  return m_processInfo->GetDeinterlacingMethodDefault();
-}
-
-bool CRetroPlayer::Supports(ESCALINGMETHOD method)
-{
-  return m_renderManager->Supports(method);
-}
-
-bool CRetroPlayer::Supports(ERENDERFEATURE feature)
-{
-  return m_renderManager->Supports(feature);
-}
-
-unsigned int CRetroPlayer::RenderCaptureAlloc()
-{
-  return m_renderManager->AllocRenderCapture();
-}
-
-void CRetroPlayer::RenderCaptureRelease(unsigned int captureId)
-{
-  m_renderManager->ReleaseRenderCapture(captureId);
-}
-
-void CRetroPlayer::RenderCapture(unsigned int captureId, unsigned int width, unsigned int height, int flags)
-{
-  m_renderManager->StartRenderCapture(captureId, width, height, flags);
-}
-
-bool CRetroPlayer::RenderCaptureGetPixels(unsigned int captureId, unsigned int millis, uint8_t *buffer, unsigned int size)
-{
-  return m_renderManager->RenderCaptureGetPixels(captureId, millis, buffer, size);
 }
 
 void CRetroPlayer::UpdateClockSync(bool enabled)

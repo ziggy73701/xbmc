@@ -24,6 +24,7 @@
 #include <float.h>
 
 #include "ServiceBroker.h"
+#include "cores/RetroPlayer/rendering/VideoRenderers/RPRendererOpenGLES.h"
 #include "cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecAmlogic.h"
 #include "cores/VideoPlayer/VideoRenderers/LinuxRendererGLES.h"
 #include "cores/VideoPlayer/VideoRenderers/HwDecRender/RendererAML.h"
@@ -40,6 +41,8 @@
 #include <linux/fb.h>
 
 #include <EGL/egl.h>
+
+using namespace KODI;
 
 CWinSystemAmlogic::CWinSystemAmlogic()
 {
@@ -83,6 +86,7 @@ bool CWinSystemAmlogic::InitWindowSystem()
 
   CDVDVideoCodecAmlogic::Register();
   CLinuxRendererGLES::Register();
+  RETRO::CRPRendererOpenGLES::Register();
   CRendererAML::Register();
 
   return CWinSystemBase::InitWindowSystem();

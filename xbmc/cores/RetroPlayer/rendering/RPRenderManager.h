@@ -20,26 +20,66 @@
 #pragma once
 
 #include "IRenderSettingsCallback.h"
-#include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
+#include "threads/CriticalSection.h"
+
+#include "libavutil/pixfmt.h"
+
+#include <memory>
 
 namespace KODI
 {
 namespace RETRO
 {
-  class CRPRenderManager : public CRenderManager,
-                           public IRenderSettingsCallback
+  class CRPBaseRenderer;
+
+  class CRPRenderManager : public IRenderSettingsCallback
   {
   public:
-    CRPRenderManager(CDVDClock &clock, IRenderMsg *player);
+    CRPRenderManager() = default;
     ~CRPRenderManager() override = default;
 
+    void Initialize();
+    void Deinitialize();
+
+    // Functions called from game loop
+    bool Configure(AVPixelFormat format, unsigned int width, unsigned int height, unsigned int orientation);
+    bool AddFrame(const uint8_t* data, unsigned int size);
+
+    // Functions called from render thread
+    bool IsConfigured() const;
+    void FrameMove();
+    void Render(bool clear, DWORD alpha);
+    void Flush();
+    void TriggerUpdateResolution();
+
     // Implementation of IRenderSettingsCallback
-    bool SupportsRenderFeature(ERENDERFEATURE feature) override;
-    bool SupportsScalingMethod(ESCALINGMETHOD method) override;
-    ESCALINGMETHOD GetScalingMethod() override;
+    bool SupportsRenderFeature(ERENDERFEATURE feature) const override;
+    bool SupportsScalingMethod(ESCALINGMETHOD method) const override;
+    ESCALINGMETHOD GetScalingMethod() const override;
     void SetScalingMethod(ESCALINGMETHOD scalingMethod) override;
-    ViewMode GetRenderViewMode() override;
+    ViewMode GetRenderViewMode() const override;
     void SetRenderViewMode(ViewMode mode) override;
+
+  private:
+    void UpdateResolution();
+
+    // Stream properties
+    AVPixelFormat m_format = AV_PIX_FMT_NONE;
+    unsigned int m_width = 0;
+    unsigned int m_height = 0;
+    unsigned int m_orientation = 0; // Degrees counter-clockwise
+
+    // Render properties
+    enum class RENDER_STATE
+    {
+      UNCONFIGURED,
+      CONFIGURING,
+      CONFIGURED,
+    };
+    RENDER_STATE m_state = RENDER_STATE::UNCONFIGURED;
+    std::shared_ptr<CRPBaseRenderer> m_renderer;
+    bool m_bTriggerUpdateResolution = false;
+    CCriticalSection m_stateMutex;
   };
 }
 }

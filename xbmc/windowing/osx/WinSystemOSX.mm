@@ -26,6 +26,7 @@
 #include "ServiceBroker.h"
 #include "messaging/ApplicationMessenger.h"
 #include "CompileInfo.h"
+#include "cores/RetroPlayer/rendering/VideoRenderers/RPRendererOpenGL.h"
 #include "cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h"
 #include "cores/VideoPlayer/DVDCodecs/Video/VTB.h"
 #include "cores/VideoPlayer/Process/osx/ProcessInfoOSX.h"
@@ -61,8 +62,9 @@
 // turn off deprecated warning spew.
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
-using namespace KODI::MESSAGING;
-using namespace KODI::WINDOWING;
+using namespace KODI;
+using namespace MESSAGING;
+using namespace WINDOWING;
 
 //------------------------------------------------------------------------------------------
 // special object-c class for handling the NSWindowDidMoveNotification callback.
@@ -787,6 +789,7 @@ bool CWinSystemOSX::CreateNewWindow(const std::string& name, bool fullScreen, RE
   CLinuxRendererGL::Register();
   CRendererVTB::Register();
   VIDEOPLAYER::CProcessInfoOSX::Register();
+  RETRO::CRPRendererOpenGL::Register();
 
   return true;
 }

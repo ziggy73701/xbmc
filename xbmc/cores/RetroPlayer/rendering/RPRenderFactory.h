@@ -1,5 +1,5 @@
 /*
- *      Copyright (C) 2017 Team Kodi
+ *      Copyright (C) 2017 Team XBMC
  *      http://kodi.tv
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -19,25 +19,24 @@
  */
 #pragma once
 
-#include "cores/IPlayer.h"
-
 namespace KODI
 {
 namespace RETRO
 {
-  class IRenderSettingsCallback
+  class CRPBaseRenderer;
+
+  using RPCreateRenderer = CRPBaseRenderer *(*)();
+
+  class CRPRendererFactory
   {
   public:
-    virtual ~IRenderSettingsCallback() = default;
+    static CRPBaseRenderer* CreateRenderer();
 
-    virtual bool SupportsRenderFeature(ERENDERFEATURE feature) const = 0;
-    virtual bool SupportsScalingMethod(ESCALINGMETHOD method) const = 0;
+    static void RegisterRenderer(RPCreateRenderer createFunc);
+    static void ClearRenderer();
 
-    virtual ESCALINGMETHOD GetScalingMethod() const = 0;
-    virtual void SetScalingMethod(ESCALINGMETHOD scalingMethod) = 0;
-
-    virtual ViewMode GetRenderViewMode() const = 0;
-    virtual void SetRenderViewMode(ViewMode mode) = 0;
+  protected:
+    static RPCreateRenderer m_renderCreator;
   };
 }
 }

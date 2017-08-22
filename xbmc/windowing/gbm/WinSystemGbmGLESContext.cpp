@@ -24,6 +24,7 @@
 #include "cores/VideoPlayer/VideoRenderers/HwDecRender/RendererVAAPIGLES.h"
 #endif
 
+#include "cores/RetroPlayer/rendering/VideoRenderers/RPRendererOpenGLES.h"
 #include "cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h"
 #include "cores/VideoPlayer/VideoRenderers/LinuxRendererGLES.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderFactory.h"
@@ -31,9 +32,12 @@
 #include "WinSystemGbmGLESContext.h"
 #include "utils/log.h"
 
+using namespace KODI;
+
 bool CWinSystemGbmGLESContext::InitWindowSystem()
 {
   CLinuxRendererGLES::Register();
+  RETRO::CRPRendererOpenGLES::Register();
 
   if (!CWinSystemGbm::InitWindowSystem())
   {

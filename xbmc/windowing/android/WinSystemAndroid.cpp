@@ -33,6 +33,7 @@
 #include "threads/SingleLock.h"
 #include "platform/android/activity/XBMCApp.h"
 
+#include "cores/RetroPlayer/rendering/VideoRenderers/RPRendererOpenGLES.h"
 #include "cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecAndroidMediaCodec.h"
 #include "cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodecAndroidMediaCodec.h"
 #include "cores/VideoPlayer/VideoRenderers/HwDecRender/RendererMediaCodec.h"
@@ -40,6 +41,8 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglplatform.h>
+
+using namespace KODI;
 
 CWinSystemAndroid::CWinSystemAndroid()
 {
@@ -75,6 +78,7 @@ bool CWinSystemAndroid::InitWindowSystem()
   CDVDAudioCodecAndroidMediaCodec::Register();
 
   CLinuxRendererGLES::Register();
+  RETRO::CRPRendererOpenGLES::Register();
   CRendererMediaCodec::Register();
   CRendererMediaCodecSurface::Register();
 

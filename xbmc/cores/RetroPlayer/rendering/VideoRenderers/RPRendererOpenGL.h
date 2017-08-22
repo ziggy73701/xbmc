@@ -19,25 +19,23 @@
  */
 #pragma once
 
-#include "cores/IPlayer.h"
+#include "RPRendererOpenGLES.h"
 
 namespace KODI
 {
 namespace RETRO
 {
-  class IRenderSettingsCallback
+  class CRPRendererOpenGL : public CRPRendererOpenGLES
   {
   public:
-    virtual ~IRenderSettingsCallback() = default;
+    static CRPBaseRenderer* Create();
+    static void Register();
 
-    virtual bool SupportsRenderFeature(ERENDERFEATURE feature) const = 0;
-    virtual bool SupportsScalingMethod(ESCALINGMETHOD method) const = 0;
+    CRPRendererOpenGL();
+    ~CRPRendererOpenGL() override = default;
 
-    virtual ESCALINGMETHOD GetScalingMethod() const = 0;
-    virtual void SetScalingMethod(ESCALINGMETHOD scalingMethod) = 0;
-
-    virtual ViewMode GetRenderViewMode() const = 0;
-    virtual void SetRenderViewMode(ViewMode mode) = 0;
+  protected:
+    void UploadTexture() override;
   };
 }
 }

@@ -121,18 +121,18 @@ namespace RETRO
     void FrameMove() override;
     void Render(bool clear, uint32_t alpha = 255, bool gui = true) override;
     void FlushRenderer() override;
-    void SetRenderViewMode(int mode) override;
-    float GetRenderAspectRatio() override;
+    //void SetRenderViewMode(int mode) override { } // Must go through render callback
+    //float GetRenderAspectRatio() override { return 1.0f; }
     void TriggerUpdateResolution() override;
     bool IsRenderingVideo() override;
-    bool Supports(EINTERLACEMETHOD method) override;
-    EINTERLACEMETHOD GetDeinterlacingMethodDefault() override;
-    bool Supports(ESCALINGMETHOD method) override;
-    bool Supports(ERENDERFEATURE feature) override;
-    unsigned int RenderCaptureAlloc() override;
-    void RenderCaptureRelease(unsigned int captureId) override;
-    void RenderCapture(unsigned int captureId, unsigned int width, unsigned int height, int flags) override;
-    bool RenderCaptureGetPixels(unsigned int captureId, unsigned int millis, uint8_t *buffer, unsigned int size) override;
+    //bool Supports(EINTERLACEMETHOD method) override { return false; } // Must go through render callback
+    //EINTERLACEMETHOD GetDeinterlacingMethodDefault() override { return EINTERLACEMETHOD::VS_INTERLACEMETHOD_NONE; } // Must go through render callback
+    //bool Supports(ESCALINGMETHOD method) override { return false; } // Must go through render callback
+    //bool Supports(ERENDERFEATURE feature) override { return false; } // Must go through render callback
+    //unsigned int RenderCaptureAlloc() override { return 0; }
+    //void RenderCaptureRelease(unsigned int captureId) override { }
+    //void RenderCapture(unsigned int captureId, unsigned int width, unsigned int height, int flags) override { }
+    //bool RenderCaptureGetPixels(unsigned int captureId, unsigned int millis, uint8_t *buffer, unsigned int size) override { return false; }
 
     // implementation of IRenderMsg
     virtual void VideoParamsChange() override { }
