@@ -528,31 +528,6 @@ bool CRetroPlayer::IsRenderingVideo()
   return m_renderManager->IsConfigured();
 }
 
-void CRetroPlayer::UpdateClockSync(bool enabled)
-{
-  m_processInfo->SetRenderClockSync(enabled);
-}
-
-void CRetroPlayer::UpdateRenderInfo(CRenderInfo &info)
-{
-  m_processInfo->UpdateRenderInfo(info);
-}
-
-void CRetroPlayer::UpdateRenderBuffers(int queued, int discard, int free)
-{
-  m_processInfo->UpdateRenderBuffers(queued, discard, free);
-}
-
-void CRetroPlayer::UpdateGuiRender(bool gui)
-{
-  m_processInfo->SetGuiRender(gui);
-}
-
-void CRetroPlayer::UpdateVideoRender(bool video)
-{
-  m_processInfo->SetVideoRender(video);
-}
-
 void CRetroPlayer::SetSpeedInternal(double speed)
 {
   OnSpeedChange(speed);

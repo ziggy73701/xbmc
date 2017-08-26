@@ -20,8 +20,6 @@
 #pragma once
 
 #include "cores/IPlayer.h"
-#include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
-#include "cores/VideoPlayer/DVDClock.h"
 #include "games/GameTypes.h"
 #include "guilib/DispResource.h"
 #include "threads/CriticalSection.h"
@@ -40,8 +38,7 @@ namespace RETRO
   class CRetroPlayerVideo;
   class CRPRenderManager;
 
-  class CRetroPlayer : public IPlayer,
-                       public IRenderMsg
+  class CRetroPlayer : public IPlayer
   {
   public:
     explicit CRetroPlayer(IPlayerCallback& callback);
@@ -134,15 +131,6 @@ namespace RETRO
     //void RenderCapture(unsigned int captureId, unsigned int width, unsigned int height, int flags) override { }
     //bool RenderCaptureGetPixels(unsigned int captureId, unsigned int millis, uint8_t *buffer, unsigned int size) override { return false; }
 
-    // implementation of IRenderMsg
-    virtual void VideoParamsChange() override { }
-    virtual void GetDebugInfo(std::string &audio, std::string &video, std::string &general) override { }
-    virtual void UpdateClockSync(bool enabled) override;
-    virtual void UpdateRenderInfo(CRenderInfo &info) override;
-    virtual void UpdateRenderBuffers(int queued, int discard, int free) override;
-    virtual void UpdateGuiRender(bool gui) override;
-    virtual void UpdateVideoRender(bool video) override;
-
   private:
     void SetSpeedInternal(double speed);
 
@@ -177,7 +165,6 @@ namespace RETRO
 
     State                              m_state = State::STARTING;
     double                             m_priorSpeed = 0.0f; // Speed of gameplay before entering OSD
-    CDVDClock                          m_clock;
     std::unique_ptr<CRPRenderManager>  m_renderManager;
     std::unique_ptr<CProcessInfo>      m_processInfo;
     std::unique_ptr<CRetroPlayerAudio> m_audio;
