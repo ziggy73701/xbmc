@@ -26,8 +26,6 @@
 
 #include <memory>
 
-class CProcessInfo;
-
 namespace KODI
 {
 namespace RETRO
@@ -36,6 +34,7 @@ namespace RETRO
   class CRetroPlayerAutoSave;
   class CRetroPlayerInput;
   class CRetroPlayerVideo;
+  class CRPProcessInfo;
   class CRPRenderManager;
 
   class CRetroPlayer : public IPlayer
@@ -166,7 +165,7 @@ namespace RETRO
     State                              m_state = State::STARTING;
     double                             m_priorSpeed = 0.0f; // Speed of gameplay before entering OSD
     std::unique_ptr<CRPRenderManager>  m_renderManager;
-    std::unique_ptr<CProcessInfo>      m_processInfo;
+    std::unique_ptr<CRPProcessInfo>    m_processInfo;
     std::unique_ptr<CRetroPlayerAudio> m_audio;
     std::unique_ptr<CRetroPlayerVideo> m_video;
     std::unique_ptr<CRetroPlayerInput> m_input;

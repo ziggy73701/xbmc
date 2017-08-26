@@ -22,18 +22,18 @@
 #include "games/addons/GameClientCallbacks.h"
 
 class CPixelConverter;
-class CProcessInfo;
 
 namespace KODI
 {
 namespace RETRO
 {
+  class CRPProcessInfo;
   class CRPRenderManager;
 
   class CRetroPlayerVideo : public GAME::IGameVideoCallback
   {
   public:
-    CRetroPlayerVideo(CRPRenderManager& m_renderManager, CProcessInfo& m_processInfo);
+    CRetroPlayerVideo(CRPRenderManager& m_renderManager, CRPProcessInfo& m_processInfo);
 
     ~CRetroPlayerVideo() override;
 
@@ -46,7 +46,7 @@ namespace RETRO
   private:
     // Construction parameters
     CRPRenderManager& m_renderManager;
-    CProcessInfo&   m_processInfo;
+    CRPProcessInfo&   m_processInfo;
   };
 }
 }

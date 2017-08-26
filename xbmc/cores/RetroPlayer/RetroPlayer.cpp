@@ -26,9 +26,9 @@
 #include "addons/AddonManager.h"
 #include "cores/DataCacheCore.h"
 #include "cores/RetroPlayer/guicontrols/GUIGameControlManager.h"
+#include "cores/RetroPlayer/process/RPProcessInfo.h"
 #include "cores/RetroPlayer/rendering/GUIRenderSettings.h"
 #include "cores/RetroPlayer/rendering/RPRenderManager.h"
-#include "cores/VideoPlayer/Process/ProcessInfo.h"
 #include "dialogs/GUIDialogYesNo.h"
 #include "filesystem/File.h"
 #include "games/addons/playback/IGameClientPlayback.h"
@@ -65,10 +65,10 @@ using namespace RETRO;
 CRetroPlayer::CRetroPlayer(IPlayerCallback& callback) :
   IPlayer(callback),
   m_renderManager(new CRPRenderManager),
-  m_processInfo(CProcessInfo::CreateInstance())
+  m_processInfo(CRPProcessInfo::CreateInstance())
 {
   m_processInfo->SetDataCache(&CServiceBroker::GetDataCacheCore());
-  m_processInfo->SetTempo(1.0);
+  m_processInfo->ResetInfo();
 }
 
 CRetroPlayer::~CRetroPlayer()

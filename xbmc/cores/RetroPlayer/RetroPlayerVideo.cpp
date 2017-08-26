@@ -19,17 +19,14 @@
  */
 
 #include "RetroPlayerVideo.h"
-#include "RetroPlayerDefines.h"
+#include "cores/RetroPlayer/process/RPProcessInfo.h"
 #include "cores/RetroPlayer/rendering/RPRenderManager.h"
-#include "cores/VideoPlayer/Process/ProcessInfo.h" //! @todo
 #include "utils/log.h"
-
-#include <atomic> //! @todo
 
 using namespace KODI;
 using namespace RETRO;
 
-CRetroPlayerVideo::CRetroPlayerVideo(CRPRenderManager& renderManager, CProcessInfo& processInfo) :
+CRetroPlayerVideo::CRetroPlayerVideo(CRPRenderManager& renderManager, CRPProcessInfo& processInfo) :
   m_renderManager(renderManager),
   m_processInfo(processInfo)
 {
@@ -46,8 +43,7 @@ bool CRetroPlayerVideo::OpenPixelStream(AVPixelFormat pixfmt, unsigned int width
 {
   CLog::Log(LOGINFO, "RetroPlayerVideo: Creating video stream with pixel format: %i, %dx%d", pixfmt, width, height);
 
-  //! @todo
-  //m_processInfo.SetVideoPixelFormat(CDVDVideoCodecFFmpeg::GetPixelFormatName(pixfmt));
+  m_processInfo.SetVideoPixelFormat(pixfmt);
   m_processInfo.SetVideoDimensions(width, height);
 
   return m_renderManager.Configure(pixfmt, width, height, orientationDeg);
@@ -55,7 +51,7 @@ bool CRetroPlayerVideo::OpenPixelStream(AVPixelFormat pixfmt, unsigned int width
 
 bool CRetroPlayerVideo::OpenEncodedStream(AVCodecID codec)
 {
-  return false;
+  return false; //! @todo
 }
 
 void CRetroPlayerVideo::AddData(const uint8_t* data, unsigned int size)

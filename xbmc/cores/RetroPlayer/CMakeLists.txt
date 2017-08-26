@@ -7,7 +7,6 @@ set(SOURCES RetroPlayer.cpp
 set(HEADERS RetroPlayer.h
             RetroPlayerAudio.h
             RetroPlayerAutoSave.h
-            RetroPlayerDefines.h
             RetroPlayerInput.h
             RetroPlayerVideo.h)
 
