@@ -27,7 +27,7 @@
 #include "GUIWindowManager.h"
 #include "messaging/helpers/DialogOKHelper.h"
 #include "settings/Settings.h"
-#include "utils/md5.h"
+#include "utils/Digest.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
 
@@ -37,6 +37,7 @@
 #endif
 
 using namespace KODI::MESSAGING;
+using KODI::UTILITY::CDigest;
 
 CGUIKeyboard *CGUIKeyboardFactory::g_activeKeyboard = NULL;
 FILTERING CGUIKeyboardFactory::m_filtering = FILTERING_NONE;
@@ -165,8 +166,7 @@ bool CGUIKeyboardFactory::ShowAndVerifyNewPassword(std::string& newPassword, CVa
   // check the password
   if (checkInput == userInput)
   {
-    newPassword = XBMC::XBMC_MD5::GetMD5(userInput);
-    StringUtils::ToLower(newPassword);
+    newPassword = CDigest::Calculate(CDigest::Type::MD5, userInput);
     return true;
   }
   HELPERS::ShowOKDialogText(CVariant{12341}, CVariant{12344});
@@ -205,7 +205,7 @@ int CGUIKeyboardFactory::ShowAndVerifyPassword(std::string& strPassword, const s
 
   if (!strPassword.empty())
   {
-    std::string md5pword2 = XBMC::XBMC_MD5::GetMD5(strUserInput);
+    std::string md5pword2 = CDigest::Calculate(CDigest::Type::MD5, strUserInput);
     if (StringUtils::EqualsNoCase(strPassword, md5pword2))
       return 0;     // user entered correct password
     else return 1;  // user must have entered an incorrect password
@@ -214,8 +214,7 @@ int CGUIKeyboardFactory::ShowAndVerifyPassword(std::string& strPassword, const s
   {
     if (!strUserInput.empty())
     {
-      strPassword = XBMC::XBMC_MD5::GetMD5(strUserInput);
-      StringUtils::ToLower(strPassword);
+      strPassword = CDigest::Calculate(CDigest::Type::MD5, strUserInput);
       return 0; // user entered correct password
     }
     else return 1;

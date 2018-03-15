@@ -19,7 +19,7 @@
  */
 
 #include "GUIDialogGamepad.h"
-#include "utils/md5.h"
+#include "utils/Digest.h"
 #include "utils/StringUtils.h"
 #include "guilib/GUIAudioManager.h"
 #include "guilib/GUIWindowManager.h"
@@ -31,6 +31,7 @@
 #include <utility>
 
 using namespace KODI::MESSAGING;
+using KODI::UTILITY::CDigest;
 
 CGUIDialogGamepad::CGUIDialogGamepad(void)
     : CGUIDialogBoxBase(WINDOW_DIALOG_GAMEPAD, "DialogConfirm.xml")
@@ -115,7 +116,7 @@ bool CGUIDialogGamepad::OnAction(const CAction &action)
     m_bConfirmed = false;
     m_bCanceled = false;
 
-    std::string md5pword2 = XBMC::XBMC_MD5::GetMD5(m_strUserInput);
+    std::string md5pword2 = CDigest::Calculate(CDigest::Type::MD5, m_strUserInput);
 
     if (!StringUtils::EqualsNoCase(m_strPassword, md5pword2))
     {
@@ -307,8 +308,7 @@ bool CGUIDialogGamepad::ShowAndVerifyInput(std::string& strToVerify, const std::
 
   if (bGetUserInput && !pDialog->IsCanceled())
   {
-    strToVerify = XBMC::XBMC_MD5::GetMD5(pDialog->m_strUserInput);
-    StringUtils::ToLower(strToVerify);
+    strToVerify = CDigest::Calculate(CDigest::Type::MD5, pDialog->m_strUserInput);
     pDialog->m_strUserInput = "";
   }
 

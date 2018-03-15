@@ -566,7 +566,7 @@ bool CAddonInstallJob::DoWork()
       SetText(g_localizeStrings.Get(24077));
       if (!m_hash.empty())
       {
-        md5 = CUtil::GetFileMD5(package);
+        md5 = CUtil::GetFileDigest(KODI::UTILITY::CDigest::Type::MD5, package);
         if (!StringUtils::EqualsNoCase(md5, m_hash))
         {
           CFile::Delete(package);

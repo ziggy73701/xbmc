@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdint.h>
 #include "MediaSource.h" // Definition of VECSOURCES
+#include "utils/Digest.h"
 
 #define ARRAY_SIZE(X)         (sizeof(X)/sizeof((X)[0]))
 
@@ -72,11 +73,10 @@ public:
   /// Get resolved filesystem location of splash image
   static std::string GetSplashPath();
 
-  /*! \brief retrieve MD5sum of a file
-   \param strPath - path to the file to MD5sum
-   \return md5 sum of the file
+  /**
+   * \return digest of the contents of the requested file in lower-case hexadecimal notation
    */
-  static std::string GetFileMD5(const std::string& strPath);
+  static std::string GetFileDigest(KODI::UTILITY::CDigest::Type type, const std::string& strPath);
   static bool GetDirectoryName(const std::string& strFileName, std::string& strDescription);
   static void GetDVDDriveIcon(const std::string& strPath, std::string& strIcon);
   static void RemoveTempFiles();

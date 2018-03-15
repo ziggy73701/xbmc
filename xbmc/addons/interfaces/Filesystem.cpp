@@ -281,7 +281,7 @@ char* Interface_Filesystem::get_file_md5(void* kodiBase, const char* filename)
     return nullptr;
   }
 
-  std::string string = CUtil::GetFileMD5(filename);
+  std::string string = CUtil::GetFileDigest(KODI::UTILITY::CDigest::Type::MD5, filename);
   char* buffer = strdup(string.c_str());
   return buffer;
 }
