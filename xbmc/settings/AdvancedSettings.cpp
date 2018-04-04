@@ -158,6 +158,7 @@ void CAdvancedSettings::Initialize()
   m_DXVAAllowHqScaling = true;
   m_videoFpsDetect = 1;
   m_maxTempo = 1.55f;
+  m_videoUseDroidProjectionCapture = false;
 
   m_mediacodecForceSoftwareRendering = false;
 
@@ -512,6 +513,8 @@ void CAdvancedSettings::ParseSettingsFile(const std::string &file)
     XMLUtils::GetInt(pElement, "percentseekbackward", m_musicPercentSeekBackward, -100, 0);
     XMLUtils::GetInt(pElement, "percentseekforwardbig", m_musicPercentSeekForwardBig, 0, 100);
     XMLUtils::GetInt(pElement, "percentseekbackwardbig", m_musicPercentSeekBackwardBig, -100, 0);
+	
+	XMLUtils::GetBoolean(pElement, "usedroidprojectioncapture", m_videoUseDroidProjectionCapture);
 
     TiXmlElement* pAudioExcludes = pElement->FirstChildElement("excludefromlisting");
     if (pAudioExcludes)
