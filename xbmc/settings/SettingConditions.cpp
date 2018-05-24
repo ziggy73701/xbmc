@@ -78,7 +78,7 @@ bool CheckMasterLock(const std::string &condition, const std::string &value, Set
 
 bool CheckPVRParentalPin(const std::string &condition, const std::string &value, SettingConstPtr setting, void *data)
 {
-  return CServiceBroker::GetPVRManager().GUIActions()->CheckParentalPIN();
+  return CServiceBroker::GetPVRManager().GUIActions()->CheckParentalPIN() == PVR::ParentalCheckResult::SUCCESS;
 }
 
 bool HasPeripherals(const std::string &condition, const std::string &value, SettingConstPtr setting, void *data)
@@ -108,7 +108,7 @@ bool HasPowerOffFeature(const std::string &condition, const std::string &value, 
 
 bool IsFullscreen(const std::string &condition, const std::string &value, SettingConstPtr setting, void *data)
 {
-  return CServiceBroker::GetWinSystem().IsFullScreen();
+  return CServiceBroker::GetWinSystem()->IsFullScreen();
 }
 
 bool IsMasterUser(const std::string &condition, const std::string &value, SettingConstPtr setting, void *data)
@@ -328,6 +328,9 @@ void CSettingConditions::Initialize(const CProfilesManager &profileManager)
 #endif
 #ifdef TARGET_DARWIN
   m_simpleConditions.insert("HasVTB");
+#endif
+#ifdef TARGET_DARWIN_OSX
+  m_simpleConditions.insert("have_osx");
 #endif
 #ifdef HAS_LIBAMCODEC
   if (aml_present())

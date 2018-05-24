@@ -29,7 +29,7 @@
 #include "threads/SingleLock.h"
 #include "settings/Settings.h"
 #include "settings/lib/Setting.h"
-#include "guilib/GraphicContext.h"
+#include "windowing/GraphicContext.h"
 #include "settings/AdvancedSettings.h"
 #include <va/va_drm.h>
 #include <va/va_drmcommon.h>
@@ -58,6 +58,15 @@ extern "C" {
 
 using namespace VAAPI;
 #define NUM_RENDER_PICS 7
+
+const std::string SETTING_VIDEOPLAYER_USEVAAPI = "videoplayer.usevaapi";
+const std::string SETTING_VIDEOPLAYER_USEVAAPIHEVC = "videoplayer.usevaapihevc";
+const std::string SETTING_VIDEOPLAYER_USEVAAPIMPEG2 = "videoplayer.usevaapimpeg2";
+const std::string SETTING_VIDEOPLAYER_USEVAAPIMPEG4 = "videoplayer.usevaapimpeg4";
+const std::string SETTING_VIDEOPLAYER_USEVAAPIVC1 = "videoplayer.usevaapivc1";
+const std::string SETTING_VIDEOPLAYER_USEVAAPIVP8 = "videoplayer.usevaapivp8";
+const std::string SETTING_VIDEOPLAYER_USEVAAPIVP9 = "videoplayer.usevaapivp9";
+const std::string SETTING_VIDEOPLAYER_PREFERVAAPIRENDER = "videoplayer.prefervaapirender";
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -117,7 +126,7 @@ bool CVAAPIContext::EnsureContext(CVAAPIContext **ctx, CDecoder *decoder)
   m_context = new CVAAPIContext();
   *ctx = m_context;
   {
-    CSingleLock gLock(g_graphicsContext);
+    CSingleLock gLock(CServiceBroker::GetWinSystem()->GetGfxContext());
     if (!m_context->CreateContext())
     {
       delete m_context;
@@ -500,11 +509,14 @@ bool CDecoder::Open(AVCodecContext* avctx, AVCodecContext* mainctx, const enum A
 
   // check if user wants to decode this format with VAAPI
   std::map<AVCodecID, std::string> settings_map = {
-    { AV_CODEC_ID_H263, CSettings::SETTING_VIDEOPLAYER_USEVAAPIMPEG4 },
-    { AV_CODEC_ID_MPEG4, CSettings::SETTING_VIDEOPLAYER_USEVAAPIMPEG4 },
-    { AV_CODEC_ID_WMV3, CSettings::SETTING_VIDEOPLAYER_USEVAAPIVC1 },
-    { AV_CODEC_ID_VC1, CSettings::SETTING_VIDEOPLAYER_USEVAAPIVC1 },
-    { AV_CODEC_ID_MPEG2VIDEO, CSettings::SETTING_VIDEOPLAYER_USEVAAPIMPEG2 },
+    { AV_CODEC_ID_H263, SETTING_VIDEOPLAYER_USEVAAPIMPEG4 },
+    { AV_CODEC_ID_MPEG4, SETTING_VIDEOPLAYER_USEVAAPIMPEG4 },
+    { AV_CODEC_ID_WMV3, SETTING_VIDEOPLAYER_USEVAAPIVC1 },
+    { AV_CODEC_ID_VC1, SETTING_VIDEOPLAYER_USEVAAPIVC1 },
+    { AV_CODEC_ID_MPEG2VIDEO, SETTING_VIDEOPLAYER_USEVAAPIMPEG2 },
+    { AV_CODEC_ID_VP8, SETTING_VIDEOPLAYER_USEVAAPIVP8 },
+    { AV_CODEC_ID_VP9, SETTING_VIDEOPLAYER_USEVAAPIVP9 },
+    { AV_CODEC_ID_HEVC, SETTING_VIDEOPLAYER_USEVAAPIHEVC },
   };
 
   auto entry = settings_map.find(avctx->codec_id);
@@ -591,6 +603,13 @@ bool CDecoder::Open(AVCodecContext* avctx, AVCodecContext* mainctx, const enum A
         profile = VAProfileHEVCMain;
       else
         profile = VAProfileNone;
+      if (!m_vaapiConfig.context->SupportsProfile(profile))
+        return false;
+      break;
+    }
+    case AV_CODEC_ID_VP8:
+    {
+      profile = VAProfileVP8Version0_3;
       if (!m_vaapiConfig.context->SupportsProfile(profile))
         return false;
       break;
@@ -713,7 +732,7 @@ long CDecoder::Release()
     CSingleLock lock(m_DecoderSection);
     CLog::Log(LOGDEBUG, LOGVIDEO, "VAAPI::Release pre-cleanup");
 
-    CSingleLock lock1(g_graphicsContext);
+    CSingleLock lock1(CServiceBroker::GetWinSystem()->GetGfxContext());
     Message *reply;
     if (m_vaapiOutput.m_controlPort.SendOutMessageSync(COutputControlProtocol::PRECLEANUP,
                                                    &reply,
@@ -1108,7 +1127,7 @@ bool CDecoder::ConfigVAAPI()
   }
 
   // initialize output
-  CSingleLock lock(g_graphicsContext);
+  CSingleLock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
   m_vaapiConfig.stats = &m_bufferStats;
   m_bufferStats.Reset();
   m_vaapiOutput.Start();
@@ -1174,7 +1193,7 @@ void CDecoder::ReturnRenderPicture(CVaapiRenderPicture *renderPic)
 
 IHardwareDecoder* CDecoder::Create(CDVDStreamInfo &hint, CProcessInfo &processInfo, AVPixelFormat fmt)
 {
-  if (fmt == AV_PIX_FMT_VAAPI_VLD && CServiceBroker::GetSettings().GetBool(CSettings::SETTING_VIDEOPLAYER_USEVAAPI))
+  if (fmt == AV_PIX_FMT_VAAPI_VLD && CServiceBroker::GetSettings().GetBool(SETTING_VIDEOPLAYER_USEVAAPI))
     return new VAAPI::CDecoder(processInfo);
 
   return nullptr;
@@ -1193,10 +1212,13 @@ void CDecoder::Register(IVaapiWinSystem *winSystem, bool deepColor)
   CDVDFactoryCodec::RegisterHWAccel("vaapi", CDecoder::Create);
   config.context->Release(nullptr);
 
-  CServiceBroker::GetSettings().GetSetting(CSettings::SETTING_VIDEOPLAYER_USEVAAPI)->SetVisible(true);
-  CServiceBroker::GetSettings().GetSetting(CSettings::SETTING_VIDEOPLAYER_USEVAAPIMPEG4)->SetVisible(true);
-  CServiceBroker::GetSettings().GetSetting(CSettings::SETTING_VIDEOPLAYER_USEVAAPIVC1)->SetVisible(true);
-  CServiceBroker::GetSettings().GetSetting(CSettings::SETTING_VIDEOPLAYER_USEVAAPIMPEG2)->SetVisible(true);
+  CServiceBroker::GetSettings().GetSetting(SETTING_VIDEOPLAYER_USEVAAPI)->SetVisible(true);
+  CServiceBroker::GetSettings().GetSetting(SETTING_VIDEOPLAYER_USEVAAPIMPEG4)->SetVisible(true);
+  CServiceBroker::GetSettings().GetSetting(SETTING_VIDEOPLAYER_USEVAAPIVC1)->SetVisible(true);
+  CServiceBroker::GetSettings().GetSetting(SETTING_VIDEOPLAYER_USEVAAPIMPEG2)->SetVisible(true);
+  CServiceBroker::GetSettings().GetSetting(SETTING_VIDEOPLAYER_USEVAAPIVP8)->SetVisible(true);
+  CServiceBroker::GetSettings().GetSetting(SETTING_VIDEOPLAYER_USEVAAPIVP9)->SetVisible(true);
+  CServiceBroker::GetSettings().GetSetting(SETTING_VIDEOPLAYER_USEVAAPIHEVC)->SetVisible(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -1410,7 +1432,7 @@ COutput::~COutput()
 
 void COutput::Dispose()
 {
-  CSingleLock lock(g_graphicsContext);
+  CSingleLock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
   m_bStop = true;
   m_outMsgEvent.Set();
   StopThread();
@@ -1542,6 +1564,7 @@ void COutput::StateMachine(int signal, Protocol *port, Message *msg)
         case COutputControlProtocol::FLUSH:
           Flush();
           msg->Reply(COutputControlProtocol::ACC);
+          m_state = O_TOP_CONFIGURED_IDLE;
           return;
         case COutputControlProtocol::PRECLEANUP:
           Flush();
@@ -1861,8 +1884,13 @@ void COutput::Flush()
   {
     if (msg->signal == COutputDataProtocol::NEWFRAME)
     {
-      CVaapiDecodedPicture pic = *reinterpret_cast<CVaapiDecodedPicture*>(msg->data);
-      m_config.videoSurfaces->ClearRender(pic.videoSurface);
+      CPayloadWrap<CVaapiDecodedPicture> *payload;
+      payload = dynamic_cast<CPayloadWrap<CVaapiDecodedPicture>*>(msg->payloadObj.get());
+      if (payload)
+      {
+        CVaapiDecodedPicture pic = *(payload->GetPlayload());
+        m_config.videoSurfaces->ClearRender(pic.videoSurface);
+      }
     }
     else if (msg->signal == COutputDataProtocol::RETURNPIC)
     {
@@ -2006,7 +2034,7 @@ void COutput::InitCycle()
     }
     if (!m_pp)
     {
-      const bool preferVaapiRender = CServiceBroker::GetSettings().GetBool(CSettings::SETTING_VIDEOPLAYER_PREFERVAAPIRENDER);
+      const bool preferVaapiRender = CServiceBroker::GetSettings().GetBool(SETTING_VIDEOPLAYER_PREFERVAAPIRENDER);
       // For 1080p/i or below, always use CVppPostproc even when not deinterlacing
       // Reason is: mesa cannot dynamically switch surfaces between use for VAAPI post-processing
       // and use for direct export, so we run into trouble if we or the user want to switch
@@ -3075,7 +3103,7 @@ bool CFFmpegPostproc::Filter(CVaapiProcessedPicture &outPic)
   outPic.source = this;
   m_refsToPics++;
 
-  int64_t bpts = av_frame_get_best_effort_timestamp(outPic.frame);
+  int64_t bpts = outPic.frame->best_effort_timestamp;
   if(bpts != AV_NOPTS_VALUE)
   {
     outPic.DVDPic.pts = (double)bpts * DVD_TIME_BASE / AV_TIME_BASE;
@@ -3130,7 +3158,7 @@ bool CFFmpegPostproc::UpdateDeintMethod(EINTERLACEMETHOD method)
   else if (method == VS_INTERLACEMETHOD_RENDER_BOB)
     return true;
   else if (method == VS_INTERLACEMETHOD_NONE &&
-           !CServiceBroker::GetSettings().GetBool(CSettings::SETTING_VIDEOPLAYER_PREFERVAAPIRENDER))
+           !CServiceBroker::GetSettings().GetBool(SETTING_VIDEOPLAYER_PREFERVAAPIRENDER))
     return true;
 
   return false;

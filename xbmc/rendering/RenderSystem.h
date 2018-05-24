@@ -21,8 +21,9 @@
 #pragma once
 
 #include "RenderSystemTypes.h"
+#include "utils/Color.h"
 #include "utils/Geometry.h"
-#include "guilib/TransformMatrix.h"
+#include "utils/TransformMatrix.h"
 #include "guilib/DirtyRegion.h"
 #include <memory>
 #include <string>
@@ -49,7 +50,7 @@ public:
   virtual bool BeginRender() = 0;
   virtual bool EndRender() = 0;
   virtual void PresentRender(bool rendered, bool videoLayer) = 0;
-  virtual bool ClearBuffers(color_t color) = 0;
+  virtual bool ClearBuffers(UTILS::Color color) = 0;
   virtual bool IsExtSupported(const char* extension) const = 0;
 
   virtual void SetViewPort(const CRect& viewPort) = 0;
@@ -90,6 +91,7 @@ public:
   virtual bool SupportsStereo(RENDER_STEREO_MODE mode) const;
   unsigned int GetMaxTextureSize() const { return m_maxTextureSize; }
   unsigned int GetMinDXTPitch() const { return m_minDXTPitch; }
+  bool UseLimitedColorRange();
 
   virtual void ShowSplash(const std::string& message);
 
@@ -106,6 +108,7 @@ protected:
   int          m_RenderVersionMajor;
   RENDER_STEREO_VIEW m_stereoView;
   RENDER_STEREO_MODE m_stereoMode;
+  bool m_limitedColorRange = false;
 
   std::unique_ptr<CGUIImage> m_splashImage;
   std::unique_ptr<CGUITextLayout> m_splashMessageLayout;

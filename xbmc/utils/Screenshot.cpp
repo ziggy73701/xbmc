@@ -35,7 +35,7 @@
 
 #include "filesystem/File.h"
 #include "guilib/GUIComponent.h"
-#include "guilib/GraphicContext.h"
+#include "windowing/GraphicContext.h"
 #include "guilib/GUIWindowManager.h"
 #include "guilib/LocalizeStrings.h"
 
@@ -80,7 +80,7 @@ bool CScreenshotSurface::capture()
     return false;
 #elif defined(TARGET_WINDOWS)
 
-  CSingleLock lock(g_graphicsContext);
+  CSingleLock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   CServiceBroker::GetGUI()->GetWindowManager().Render();
 
@@ -130,7 +130,7 @@ bool CScreenshotSurface::capture()
   }
 #elif defined(HAS_GL) || defined(HAS_GLES)
 
-  CSingleLock lock(g_graphicsContext);
+  CSingleLock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
   CServiceBroker::GetGUI()->GetWindowManager().Render();
 #ifndef HAS_GLES
   glReadBuffer(GL_BACK);
@@ -213,9 +213,9 @@ void CScreenShot::TakeScreenshot(const std::string &filename, bool sync)
   else
   {
     //make sure the file exists to avoid concurrency issues
-    FILE* fp = fopen(filename.c_str(), "w");
-    if (fp)
-      fclose(fp);
+    XFILE::CFile file;
+    if (file.OpenForWrite(filename))
+      file.Close();
     else
       CLog::Log(LOGERROR, "Unable to create file %s", CURL::GetRedacted(filename).c_str());
 

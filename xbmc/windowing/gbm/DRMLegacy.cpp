@@ -151,8 +151,11 @@ bool CDRMLegacy::QueueFlip(struct gbm_bo *bo)
 
 void CDRMLegacy::FlipPage(struct gbm_bo *bo, bool rendered, bool videoLayer)
 {
-  flip_happening = QueueFlip(bo);
-  WaitingForFlip();
+  if (rendered || videoLayer)
+  {
+    flip_happening = QueueFlip(bo);
+    WaitingForFlip();
+  }
 }
 
 bool CDRMLegacy::InitDrm()
@@ -168,5 +171,16 @@ bool CDRMLegacy::InitDrm()
   }
 
   CLog::Log(LOGDEBUG, "CDRMLegacy::%s - initialized legacy DRM", __FUNCTION__);
+  return true;
+}
+
+bool CDRMLegacy::SetActive(bool active)
+{
+  if (!SetProperty(m_connector, "DPMS", active ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF))
+  {
+    CLog::Log(LOGDEBUG, "CDRMLegacy::%s - failed to set DPMS property");
+    return false;
+  }
+
   return true;
 }

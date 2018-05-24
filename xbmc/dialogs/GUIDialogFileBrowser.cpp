@@ -365,7 +365,7 @@ void CGUIDialogFileBrowser::Update(const std::string &strDirectory)
     CFileItemList items;
     std::string strParentPath;
 
-    if (!m_rootDir.GetDirectory(pathToUrl, items, m_useFileDirectories))
+    if (!m_rootDir.GetDirectory(pathToUrl, items, m_useFileDirectories, false))
     {
       CLog::Log(LOGERROR,"CGUIDialogFileBrowser::GetDirectory(%s) failed", pathToUrl.GetRedacted().c_str());
 
@@ -743,7 +743,7 @@ bool CGUIDialogFileBrowser::ShowAndGetFile(const std::string &directory, const s
   else
   {
     browser->m_vecItems->Clear();
-    CDirectory::GetDirectory(directory,*browser->m_vecItems);
+    CDirectory::GetDirectory(directory,*browser->m_vecItems, "", DIR_FLAG_DEFAULTS);
     CFileItemPtr item(new CFileItem("file://Browse", false));
     item->SetLabel(g_localizeStrings.Get(20153));
     item->SetIconImage("DefaultFolder.png");

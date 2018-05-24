@@ -75,6 +75,7 @@
 #include "LangInfo.h"
 #include "URL.h"
 
+
 #ifdef TARGET_RASPBERRY_PI
 #include "cores/omxplayer/OMXPlayerAudio.h"
 #include "cores/omxplayer/OMXPlayerVideo.h"
@@ -169,8 +170,11 @@ class PredicateAudioFilter
 {
 private:
   int currentAudioStream;
+  bool preferStereo;
 public:
-  explicit PredicateAudioFilter(int audioStream) : currentAudioStream(audioStream)
+  explicit PredicateAudioFilter(int audioStream, bool preferStereo)
+    : currentAudioStream(audioStream)
+    , preferStereo(preferStereo)
   {
   };
   bool operator()(const SelectionStream& lh, const SelectionStream& rh)
@@ -199,8 +203,12 @@ public:
                        rh.flags & StreamFlags::FLAG_DEFAULT);
     }
 
-    PREDICATE_RETURN(lh.channels,
-                     rh.channels);
+    if (preferStereo)
+      PREDICATE_RETURN(lh.channels == 2,
+                       rh.channels == 2);
+    else
+      PREDICATE_RETURN(lh.channels,
+                       rh.channels);
 
     PREDICATE_RETURN(StreamUtils::GetCodecPriority(lh.codec),
                      StreamUtils::GetCodecPriority(rh.codec));
@@ -271,8 +279,8 @@ public:
       PREDICATE_RETURN(g_LangCodeExpander.CompareISO639Codes(lh.language, audiolang)
                      , g_LangCodeExpander.CompareISO639Codes(rh.language, audiolang));
 
-      PREDICATE_RETURN(lh.flags & (StreamFlags::FLAG_FORCED && StreamFlags::FLAG_DEFAULT)
-                     , rh.flags & (StreamFlags::FLAG_FORCED && StreamFlags::FLAG_DEFAULT));
+      PREDICATE_RETURN((lh.flags & (StreamFlags::FLAG_FORCED | StreamFlags::FLAG_DEFAULT)) == (StreamFlags::FLAG_FORCED | StreamFlags::FLAG_DEFAULT)
+                     , (rh.flags & (StreamFlags::FLAG_FORCED | StreamFlags::FLAG_DEFAULT)) == (StreamFlags::FLAG_FORCED | StreamFlags::FLAG_DEFAULT));
 
     }
 
@@ -678,12 +686,12 @@ CVideoPlayer::CVideoPlayer(IPlayerCallback& callback)
 
   m_displayLost = false;
   m_error = false;
-  CServiceBroker::GetWinSystem().Register(this);
+  CServiceBroker::GetWinSystem()->Register(this);
 }
 
 CVideoPlayer::~CVideoPlayer()
 {
-  CServiceBroker::GetWinSystem().Unregister(this);
+  CServiceBroker::GetWinSystem()->Unregister(this);
 
   CloseFile();
   DestroyPlayers();
@@ -753,7 +761,7 @@ bool CVideoPlayer::CloseFile(bool reopen)
   // since this main thread cleans up all other resources and threads
   // we are done after the StopThread call
   {
-    CSingleExit exitlock(g_graphicsContext);
+    CSingleExit exitlock(CServiceBroker::GetWinSystem()->GetGfxContext());
     StopThread();
   }
 
@@ -946,9 +954,9 @@ void CVideoPlayer::OpenDefaultStreams(bool reset)
 
   // open audio stream
   valid = false;
-  if (!m_playerOptions.video_only)
+  if (!m_playerOptions.videoOnly)
   {
-    PredicateAudioFilter af(m_processInfo->GetVideoSettings().m_AudioStream);
+    PredicateAudioFilter af(m_processInfo->GetVideoSettings().m_AudioStream, m_playerOptions.preferStereo);
     for (const auto &stream : m_SelectionStreams.Get(STREAM_AUDIO, af))
     {
       if(OpenStream(m_CurrentAudio, stream.demuxerId, stream.id, stream.source, reset))
@@ -1179,7 +1187,7 @@ bool CVideoPlayer::IsValidStream(CCurrentStream& stream)
 bool CVideoPlayer::IsBetterStream(CCurrentStream& current, CDemuxStream* stream)
 {
   // Do not reopen non-video streams if we're in video-only mode
-  if (m_playerOptions.video_only && current.type != STREAM_VIDEO)
+  if (m_playerOptions.videoOnly && current.type != STREAM_VIDEO)
     return false;
 
   if(stream->disabled)
@@ -1283,9 +1291,6 @@ void CVideoPlayer::Prepare()
   // give players a chance to reconsider now codecs are known
   CreatePlayers();
 
-  // allow renderer to switch to fullscreen if requested
-  m_VideoPlayerVideo->EnableFullscreen(m_playerOptions.fullscreen);
-
   if (m_omxplayer_mode)
   {
     if (!m_OmxPlayerState.av_clock.OMXInitialize(&m_clock))
@@ -1372,7 +1377,7 @@ void CVideoPlayer::Prepare()
 
 void CVideoPlayer::Process()
 {
-  CServiceBroker::GetWinSystem().RegisterRenderLoop(this);
+  CServiceBroker::GetWinSystem()->RegisterRenderLoop(this);
 
   Prepare();
 
@@ -2065,6 +2070,11 @@ void CVideoPlayer::HandlePlaySpeed()
 
       if (!m_State.streamsReady)
       {
+        if (m_playerOptions.fullscreen)
+        {
+          CApplicationMessenger::GetInstance().PostMsg(TMSG_SWITCHTOFULLSCREEN);
+        }
+
         IPlayerCallback *cb = &m_callback;
         CFileItem fileItem = m_item;
         m_outboundEvents->Submit([=]() {
@@ -2471,7 +2481,7 @@ void CVideoPlayer::OnExit()
   // subtitles are added from video player. after video player has finished, overlays have to be cleared.
   CloseStream(m_CurrentSubtitle, false);  // clear overlay container
 
-  CServiceBroker::GetWinSystem().UnregisterRenderLoop(this);
+  CServiceBroker::GetWinSystem()->UnregisterRenderLoop(this);
 
   IPlayerCallback *cb = &m_callback;
   CVideoSettings vs = m_processInfo->GetVideoSettings();
@@ -2603,7 +2613,7 @@ void CVideoPlayer::HandleMessages()
 
       if (!msg.GetTrickPlay())
       {
-        g_infoManager.SetDisplayAfterSeek(100000);
+        CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek(100000);
         SetCaching(CACHESTATE_FLUSH);
       }
 
@@ -2660,7 +2670,7 @@ void CVideoPlayer::HandleMessages()
 
       // set flag to indicate we have finished a seeking request
       if(!msg.GetTrickPlay())
-        g_infoManager.SetDisplayAfterSeek();
+        CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek();
 
       // dvd's will issue a HOP_CHANNEL that we need to skip
       if(m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD))
@@ -2672,7 +2682,7 @@ void CVideoPlayer::HandleMessages()
              m_messenger.GetPacketCount(CDVDMsg::PLAYER_SEEK) == 0 &&
              m_messenger.GetPacketCount(CDVDMsg::PLAYER_SEEK_CHAPTER) == 0)
     {
-      g_infoManager.SetDisplayAfterSeek(100000);
+      CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek(100000);
       SetCaching(CACHESTATE_FLUSH);
 
       CDVDMsgPlayerSeekChapter &msg(*static_cast<CDVDMsgPlayerSeekChapter*>(pMsg));
@@ -2688,7 +2698,7 @@ void CVideoPlayer::HandleMessages()
         m_callback.OnPlayBackSeekChapter(msg.GetChapter());
       }
 
-      g_infoManager.SetDisplayAfterSeek(2500, offset);
+      CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek(2500, offset);
     }
     else if (pMsg->IsType(CDVDMsg::DEMUXER_RESET))
     {
@@ -2817,7 +2827,7 @@ void CVideoPlayer::HandleMessages()
     }
     else if (pMsg->IsType(CDVDMsg::PLAYER_SET_STATE))
     {
-      g_infoManager.SetDisplayAfterSeek(100000);
+      CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek(100000);
       SetCaching(CACHESTATE_FLUSH);
 
       CDVDMsgPlayerSetState* pMsgPlayerSetState = static_cast<CDVDMsgPlayerSetState*>(pMsg);
@@ -2832,7 +2842,7 @@ void CVideoPlayer::HandleMessages()
         }
       }
 
-      g_infoManager.SetDisplayAfterSeek();
+      CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek();
     }
     else if (pMsg->IsType(CDVDMsg::GENERAL_FLUSH))
     {
@@ -2861,7 +2871,7 @@ void CVideoPlayer::HandleMessages()
         m_callback.OnPlayBackSpeedChanged(speed / DVD_PLAYSPEED_NORMAL);
 
       // notify GUI, skins may want to show the seekbar
-      g_infoManager.SetDisplayAfterSeek();
+      CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek();
 
       if (m_pInputStream->IsStreamType(DVDSTREAM_TYPE_PVRMANAGER) && speed != m_playSpeed)
       {
@@ -3674,13 +3684,20 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
     hint.stills = true;
 
   if (hint.stereo_mode.empty())
-    hint.stereo_mode = CStereoscopicsManager::GetInstance().DetectStereoModeByString(m_item.GetPath());
+  {
+    CGUIComponent *gui = CServiceBroker::GetGUI();
+    if (gui != nullptr)
+    {
+      const CStereoscopicsManager &stereoscopicsManager = gui->GetStereoscopicsManager();
+      hint.stereo_mode = stereoscopicsManager.DetectStereoModeByString(m_item.GetPath());
+    }
+  }
 
   if (hint.flags & AV_DISPOSITION_ATTACHED_PIC)
     return false;
 
   // set desired refresh rate
-  if (m_playerOptions.fullscreen && g_graphicsContext.IsFullScreenRoot() &&
+  if (m_playerOptions.fullscreen && CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot() &&
       hint.fpsrate != 0 && hint.fpsscale != 0)
   {
     if (CServiceBroker::GetSettings().GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF)
@@ -3708,7 +3725,7 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
     if (hint.fpsrate > 0 && hint.fpsscale > 0)
     {
       float fFramesPerSecond = (float)m_CurrentVideo.hint.fpsrate / (float)m_CurrentVideo.hint.fpsscale;
-      m_Edl.ReadEditDecisionLists(m_item.GetDynPath(), fFramesPerSecond, m_CurrentVideo.hint.height);
+      m_Edl.ReadEditDecisionLists(m_item, fFramesPerSecond, m_CurrentVideo.hint.height);
     }
 
     static_cast<IDVDStreamPlayerVideo*>(player)->SetSpeed(m_streamPlayerSpeed);
@@ -4165,7 +4182,7 @@ int CVideoPlayer::OnDiscNavResult(void* pData, int iMessage)
 
 void CVideoPlayer::GetVideoResolution(unsigned int &width, unsigned int &height)
 {
-  RESOLUTION_INFO res = g_graphicsContext.GetResInfo();
+  RESOLUTION_INFO res = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo();
   width = res.iWidth;
   height = res.iHeight;
 }
@@ -4212,7 +4229,7 @@ bool CVideoPlayer::OnAction(const CAction &action)
         THREAD_ACTION(action);
         CLog::Log(LOGDEBUG, " - pushed prev");
         pMenus->OnPrevious();
-        g_infoManager.SetDisplayAfterSeek();
+        CServiceBroker::GetGUI()->GetInfoManager().SetDisplayAfterSeek();
         return true;
       }
       break;
@@ -4221,7 +4238,7 @@ bool CVideoPlayer::OnAction(const CAction &action)
         THREAD_ACTION(action);
         CLog::Log(LOGDEBUG, " - pushed next");
         pMenus->OnNext();
-        g_infoManager.SetDisplayAfterSeek();
+        CServiceBroker::GetGUI()->GetInfoManager().SetDisplayAfterSeek();
         return true;
       }
       break;
@@ -4252,13 +4269,13 @@ bool CVideoPlayer::OnAction(const CAction &action)
         THREAD_ACTION(action);
         CLog::Log(LOGDEBUG, " - pushed next in menu, stream will decide");
         pMenus->OnNext();
-        g_infoManager.SetDisplayAfterSeek();
+        CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek();
         return true;
       case ACTION_PREV_ITEM:
         THREAD_ACTION(action);
         CLog::Log(LOGDEBUG, " - pushed prev in menu, stream will decide");
         pMenus->OnPrevious();
-        g_infoManager.SetDisplayAfterSeek();
+        CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek();
         return true;
       case ACTION_PREVIOUS_MENU:
       case ACTION_NAV_BACK:
@@ -4367,7 +4384,7 @@ bool CVideoPlayer::OnAction(const CAction &action)
       if (GetChapter() > 0 && GetChapter() < GetChapterCount())
       {
         m_messenger.Put(new CDVDMsgPlayerSeekChapter(GetChapter() + 1));
-        g_infoManager.SetDisplayAfterSeek();
+        CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek();
         return true;
       }
       else if (SeekScene(true))
@@ -4378,7 +4395,7 @@ bool CVideoPlayer::OnAction(const CAction &action)
       if (GetChapter() > 0)
       {
         m_messenger.Put(new CDVDMsgPlayerSeekChapter(GetChapter() - 1));
-        g_infoManager.SetDisplayAfterSeek();
+        CServiceBroker::GetGUI()->GetInfoManager().GetInfoProviders().GetPlayerInfoProvider().SetDisplayAfterSeek();
         return true;
       }
       else if (SeekScene(false))

@@ -20,7 +20,7 @@
 
 #include "RenderSystemGL.h"
 #include "filesystem/File.h"
-#include "guilib/GraphicContext.h"
+#include "windowing/GraphicContext.h"
 #include "settings/AdvancedSettings.h"
 #include "guilib/MatrixGLES.h"
 #include "settings/DisplaySettings.h"
@@ -212,6 +212,7 @@ bool CRenderSystemGL::BeginRender()
   if (!m_bRenderCreated)
     return false;
 
+  m_limitedColorRange = CServiceBroker::GetWinSystem()->UseLimitedColor();
   return true;
 }
 
@@ -223,7 +224,7 @@ bool CRenderSystemGL::EndRender()
   return true;
 }
 
-bool CRenderSystemGL::ClearBuffers(color_t color)
+bool CRenderSystemGL::ClearBuffers(UTILS::Color color)
 {
   if (!m_bRenderCreated)
     return false;

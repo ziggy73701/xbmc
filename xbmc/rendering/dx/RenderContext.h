@@ -23,21 +23,20 @@
 #include "windowing/windows/WinSystemWin32DX.h"
 #elif defined(TARGET_WINDOWS_STORE)
 #include "windowing/win10/WinSystemWin10DX.h"
-#include <agile.h>
 #endif
 #include "xbmc/ServiceBroker.h"
 
 namespace DX
 {
 #if defined(TARGET_WINDOWS_DESKTOP)
-  __inline CWinSystemWin32DX& Windowing()
+  __inline CWinSystemWin32DX* Windowing()
   {
-    return dynamic_cast<CWinSystemWin32DX&>(CServiceBroker::GetRenderSystem());
+    return dynamic_cast<CWinSystemWin32DX*>(CServiceBroker::GetRenderSystem());
   }
 #elif defined(TARGET_WINDOWS_STORE)
-  __inline CWinSystemWin10DX& Windowing()
+  __inline CWinSystemWin10DX* Windowing()
   {
-    return dynamic_cast<CWinSystemWin10DX&>(CServiceBroker::GetRenderSystem());
+    return dynamic_cast<CWinSystemWin10DX*>(CServiceBroker::GetRenderSystem());
   }
 #endif
 }

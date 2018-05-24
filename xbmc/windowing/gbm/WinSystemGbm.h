@@ -23,6 +23,8 @@
 #include <gbm.h>
 #include <EGL/egl.h>
 
+#include "platform/linux/input/LibInputHandler.h"
+#include "platform/linux/OptionalsReg.h"
 #include "threads/CriticalSection.h"
 #include "windowing/WinSystem.h"
 #include "DRMUtils.h"
@@ -52,10 +54,15 @@ public:
 
   void UpdateResolutions() override;
 
+  bool UseLimitedColor() override;
+
   bool Hide() override;
   bool Show(bool raise = true) override;
   virtual void Register(IDispResource *resource);
   virtual void Unregister(IDispResource *resource);
+
+  std::string GetModule() const { return m_DRM->GetModule(); }
+  std::string GetDevicePath() const { return m_DRM->GetDevicePath(); }
 
   std::shared_ptr<CDRMUtils> m_DRM;
 
@@ -69,4 +76,6 @@ protected:
 
   bool m_delayDispReset;
   XbmcThreads::EndTime m_dispResetTimer;
+  std::unique_ptr<OPTIONALS::CLircContainer, OPTIONALS::delete_CLircContainer> m_lirc;
+  std::unique_ptr<CLibInputHandler> m_libinput;
 };

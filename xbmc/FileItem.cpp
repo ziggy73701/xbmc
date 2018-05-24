@@ -206,7 +206,7 @@ CFileItem::CFileItem(const CPVRRecordingPtr& record)
   m_pvrRecordingInfoTag = record;
   m_strPath = record->m_strFileNameAndPath;
   SetLabel(record->m_strTitle);
-  m_strLabel2 = record->m_strPlot;
+  m_strLabel2 = record->RecordingTimeAsLocalTime().GetAsLocalizedDateTime(true, false);
   FillInMimeType(false);
 }
 
@@ -1066,6 +1066,9 @@ bool CFileItem::IsPythonScript() const
 
 bool CFileItem::IsType(const char *ext) const
 {
+  if (!m_strDynPath.empty())
+    return URIUtils::HasExtension(m_strDynPath, ext);
+
   return URIUtils::HasExtension(m_strPath, ext);
 }
 
@@ -1503,7 +1506,7 @@ bool CFileItem::IsSamePath(const CFileItem *item) const
   if (!item)
     return false;
 
-  if (item->GetPath() == m_strPath)
+  if (!m_strPath.empty() && item->GetPath() == m_strPath)
   {
     if (item->HasProperty("item_start") || HasProperty("item_start"))
       return (item->GetProperty("item_start") == GetProperty("item_start"));
@@ -2642,7 +2645,9 @@ void CFileItemList::StackFolders()
           if (bMatch)
           {
             CFileItemList items;
-            CDirectory::GetDirectory(item->GetPath(), items, CServiceBroker::GetFileExtensionProvider().GetVideoExtensions());
+            CDirectory::GetDirectory(item->GetPath(), items,
+                                     CServiceBroker::GetFileExtensionProvider().GetVideoExtensions(),
+                                     DIR_FLAG_DEFAULTS);
             // optimized to only traverse listing once by checking for filecount
             // and recording last file item for later use
             int nFiles = 0;
@@ -3333,7 +3338,6 @@ bool CFileItem::LoadMusicTag()
     if (musicDatabase.GetSongByFileName(m_strPath, song))
     {
       GetMusicInfoTag()->SetSong(song);
-      SetArt("thumb", song.strThumb);
       return true;
     }
     musicDatabase.Close();

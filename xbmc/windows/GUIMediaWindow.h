@@ -27,6 +27,8 @@
 #include "playlists/SmartPlayList.h"
 #include "view/GUIViewControl.h"
 
+#include <atomic>
+
 class CFileItemList;
 class CGUIViewState;
 
@@ -164,8 +166,8 @@ protected:
   void UpdateFileList();
   virtual void OnDeleteItem(int iItem);
   void OnRenameItem(int iItem);
-
   bool WaitForNetwork() const;
+  bool GetDirectoryItems(CURL &url, CFileItemList &items, bool useDir);
 
   /*! \brief Translate the folder to start in from the given quick path
    \param url the folder the user wants
@@ -189,6 +191,7 @@ protected:
   CFileItemList* m_unfilteredItems;        ///< \brief items prior to filtering using FilterItems()
   CDirectoryHistory m_history;
   std::unique_ptr<CGUIViewState> m_guiState;
+  std::atomic_bool m_vecItemsUpdating = {false};
 
   // save control state on window exit
   int m_iLastControl;
@@ -209,4 +212,5 @@ protected:
    \sa Update
    */
   std::string m_strFilterPath;
+  bool m_useBusyDialog = false;
 };

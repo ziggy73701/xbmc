@@ -233,6 +233,7 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     StringMapping m_pathSubstitutions;
     int m_remoteDelay; ///< \brief number of remote messages to ignore before repeating
     float m_controllerDeadzone;
+    bool m_bScanIRServer;
 
     bool m_playlistAsFolders;
     bool m_detectAsUdf;
@@ -251,6 +252,8 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
 
     std::string m_musicThumbs;
     std::string m_fanartImages;
+    std::vector<std::string> m_musicArtistExtraArt;
+    std::vector<std::string> m_musicAlbumExtraArt;
 
     int m_iMusicLibraryRecentlyAddedItems;
     int m_iMusicLibraryDateAdded;
@@ -336,7 +339,6 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     DatabaseSettings m_databaseVideo; // advanced video database setup
     DatabaseSettings m_databaseTV;    // advanced tv database setup
     DatabaseSettings m_databaseEpg;   /*!< advanced EPG database setup */
-    DatabaseSettings m_databaseADSP;  /*!< advanced audio dsp database setup */
     DatabaseSettings m_databaseSavestates; /*!< advanced savestate database setup */
 
     bool m_guiVisualizeDirtyRegions;

@@ -81,7 +81,7 @@ public:
   bool DoWork() override
   {
     CFileItemList items;
-    if (CDirectory::GetDirectory(m_url, items, ""))
+    if (CDirectory::GetDirectory(m_url, items, "", DIR_FLAG_DEFAULTS))
     {
       // sort the items if necessary
       if (m_sort.sortBy != SortByNone)
@@ -247,6 +247,7 @@ void CDirectoryProvider::Announce(AnnouncementFlag flag, const char *sender, con
     if (flag & Player)
     {
       if (strcmp(message, "OnPlay") == 0 ||
+          strcmp(message, "OnResume") == 0 ||
           strcmp(message, "OnStop") == 0)
       {
         if (m_currentSort.sortBy == SortByNone || // not nice, but many directories that need to be refreshed on start/stop have no special sort order (e.g. in progress movies)
@@ -420,7 +421,7 @@ bool CDirectoryProvider::OnInfo(const CGUIListItemPtr& item)
   }
   else if (fileItem->HasMusicInfoTag())
   {
-    CGUIDialogMusicInfo::ShowFor(*fileItem.get());
+    CGUIDialogMusicInfo::ShowFor(fileItem.get());
     return true;
   }
   return false;

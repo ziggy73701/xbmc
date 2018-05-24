@@ -26,6 +26,7 @@
 #include "filesystem/Directory.h"
 #include "filesystem/ZipManager.h"
 #include "filesystem/FileDirectoryFactory.h"
+#include "dialogs/GUIDialogBusy.h"
 #include "dialogs/GUIDialogContextMenu.h"
 #include "dialogs/GUIDialogMediaSource.h"
 #include "GUIPassword.h"
@@ -51,6 +52,7 @@
 #include "input/InputManager.h"
 #include "guilib/LocalizeStrings.h"
 #include "messaging/helpers/DialogOKHelper.h"
+#include "threads/Thread.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 #include "utils/JobManager.h"
@@ -91,6 +93,31 @@ using namespace KODI::MESSAGING;
 
 #define CONTROL_CURRENTDIRLABEL_LEFT    101
 #define CONTROL_CURRENTDIRLABEL_RIGHT   102
+
+namespace
+{
+class CGetDirectoryItems : public IRunnable
+{
+public:
+  CGetDirectoryItems(XFILE::CVirtualDirectory &dir, CURL &url, CFileItemList &items)
+  : m_dir(dir), m_url(url), m_items(items)
+  {
+  }
+  void Run() override
+  {
+    m_result = m_dir.GetDirectory(m_url, m_items, false, false);
+  }
+  void Cancel() override
+  {
+    m_dir.CancelDirectory();
+  }
+  bool m_result;
+protected:
+  XFILE::CVirtualDirectory &m_dir;
+  CURL m_url;
+  CFileItemList &m_items;
+};
+}
 
 CGUIWindowFileManager::CGUIWindowFileManager(void)
     : CGUIWindow(WINDOW_FILES, "FileManager.xml"),
@@ -898,8 +925,14 @@ void CGUIWindowFileManager::GetDirectoryHistoryString(const CFileItem* pItem, st
 
 bool CGUIWindowFileManager::GetDirectory(int iList, const std::string &strDirectory, CFileItemList &items)
 {
-  const CURL pathToUrl(strDirectory);
-  return m_rootDir.GetDirectory(pathToUrl, items, false);
+  CURL pathToUrl(strDirectory);
+
+  CGetDirectoryItems getItems(m_rootDir, pathToUrl, items);
+  if (!CGUIDialogBusy::Wait(&getItems, 100, true))
+  {
+    return false;
+  }
+  return getItems.m_result;
 }
 
 bool CGUIWindowFileManager::CanRename(int iList)
@@ -1155,7 +1188,7 @@ int64_t CGUIWindowFileManager::CalculateFolderSize(const std::string &strDirecto
   CFileItemList items;
   CVirtualDirectory rootDir;
   rootDir.SetSources(*CMediaSourceSettings::GetInstance().GetSources("files"));
-  rootDir.GetDirectory(pathToUrl, items, false);
+  rootDir.GetDirectory(pathToUrl, items, false, false);
   for (int i=0; i < items.Size(); i++)
   {
     if (items[i]->m_bIsFolder && !items[i]->IsParentFolder()) // folder
@@ -1261,7 +1294,11 @@ void CGUIWindowFileManager::SetInitialPath(const std::string &path)
       VECSOURCES shares;
       m_rootDir.GetSources(shares);
       int iIndex = CUtil::GetMatchingSource(strDestination, shares, bIsSourceName);
-      if (iIndex > -1)
+      if (iIndex > -1
+#if defined(TARGET_DARWIN_IOS)
+          || URIUtils::PathHasParent(strDestination, "special://envhome/Documents/Inbox/")
+#endif
+          || URIUtils::PathHasParent(strDestination, "special://profile/"))
       {
         // set current directory to matching share
         std::string path;

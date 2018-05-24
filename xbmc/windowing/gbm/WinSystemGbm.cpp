@@ -26,12 +26,12 @@
 #include <string.h>
 
 #include "OptionalsReg.h"
-#include "guilib/GraphicContext.h"
-#include "powermanagement/linux/LinuxPowerSyscall.h"
+#include "platform/linux/OptionalsReg.h"
+#include "windowing/GraphicContext.h"
+#include "platform/linux/powermanagement/LinuxPowerSyscall.h"
 #include "settings/DisplaySettings.h"
 #include "utils/log.h"
 #include "utils/StringUtils.h"
-#include "../WinEventsLinux.h"
 #include "DRMAtomic.h"
 #include "DRMLegacy.h"
 #include "messaging/ApplicationMessenger.h"
@@ -40,36 +40,45 @@
 CWinSystemGbm::CWinSystemGbm() :
   m_DRM(nullptr),
   m_GBM(new CGBMUtils),
-  m_delayDispReset(false)
+  m_delayDispReset(false),
+  m_libinput(new CLibInputHandler)
 {
   std::string envSink;
   if (getenv("AE_SINK"))
     envSink = getenv("AE_SINK");
   if (StringUtils::EqualsNoCase(envSink, "ALSA"))
   {
-    GBM::ALSARegister();
+    OPTIONALS::ALSARegister();
   }
   else if (StringUtils::EqualsNoCase(envSink, "PULSE"))
   {
-    GBM::PulseAudioRegister();
+    OPTIONALS::PulseAudioRegister();
+  }
+  else if (StringUtils::EqualsNoCase(envSink, "OSS"))
+  {
+    OPTIONALS::OSSRegister();
   }
   else if (StringUtils::EqualsNoCase(envSink, "SNDIO"))
   {
-    GBM::SndioRegister();
+    OPTIONALS::SndioRegister();
   }
   else
   {
-    if (!GBM::PulseAudioRegister())
+    if (!OPTIONALS::PulseAudioRegister())
     {
-      if (!GBM::ALSARegister())
+      if (!OPTIONALS::ALSARegister())
       {
-        GBM::SndioRegister();
+        if (!OPTIONALS::SndioRegister())
+        {
+          OPTIONALS::OSSRegister();
+        }
       }
     }
   }
 
-  m_winEvents.reset(new CWinEventsLinux());
   CLinuxPowerSyscall::Register();
+  m_lirc.reset(OPTIONALS::LircRegister());
+  m_libinput->Start();
 }
 
 bool CWinSystemGbm::InitWindowSystem()
@@ -145,12 +154,6 @@ void CWinSystemGbm::UpdateResolutions()
 {
   CWinSystemBase::UpdateResolutions();
 
-  UpdateDesktopResolution(CDisplaySettings::GetInstance().GetResolutionInfo(RES_DESKTOP),
-                          0,
-                          m_DRM->m_mode->hdisplay,
-                          m_DRM->m_mode->vdisplay,
-                          m_DRM->m_mode->vrefresh);
-
   std::vector<RESOLUTION_INFO> resolutions;
 
   if (!m_DRM->GetModes(resolutions) || resolutions.empty())
@@ -163,17 +166,42 @@ void CWinSystemGbm::UpdateResolutions()
 
     for (unsigned int i = 0; i < resolutions.size(); i++)
     {
-      g_graphicsContext.ResetOverscan(resolutions[i]);
-      CDisplaySettings::GetInstance().AddResolutionInfo(resolutions[i]);
+      if(m_DRM->m_mode->hdisplay == resolutions[i].iWidth &&
+         m_DRM->m_mode->vdisplay == resolutions[i].iHeight &&
+         m_DRM->m_mode->vrefresh == resolutions[i].fRefreshRate &&
+         ((m_DRM->m_mode->flags ^ DRM_MODE_FLAG_INTERLACE) &&
+          (resolutions[i].dwFlags ^ D3DPRESENTFLAG_INTERLACED)))
+      {
+        CLog::Log(LOGNOTICE, "Found resolution %dx%d for display %d with %dx%d%s @ %f Hz setting to RES_DESKTOP at %d",
+                  resolutions[i].iWidth,
+                  resolutions[i].iHeight,
+                  resolutions[i].iScreen,
+                  resolutions[i].iScreenWidth,
+                  resolutions[i].iScreenHeight,
+                  resolutions[i].dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
+                  resolutions[i].fRefreshRate,
+                  (int)RES_DESKTOP);
 
-      CLog::Log(LOGNOTICE, "Found resolution %dx%d for display %d with %dx%d%s @ %f Hz",
-                resolutions[i].iWidth,
-                resolutions[i].iHeight,
-                resolutions[i].iScreen,
-                resolutions[i].iScreenWidth,
-                resolutions[i].iScreenHeight,
-                resolutions[i].dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
-                resolutions[i].fRefreshRate);
+        UpdateDesktopResolution(CDisplaySettings::GetInstance().GetResolutionInfo(RES_DESKTOP),
+                                0,
+                                m_DRM->m_mode->hdisplay,
+                                m_DRM->m_mode->vdisplay,
+                                m_DRM->m_mode->vrefresh);
+      }
+      else
+      {
+        CLog::Log(LOGNOTICE, "Found resolution %dx%d for display %d with %dx%d%s @ %f Hz",
+                  resolutions[i].iWidth,
+                  resolutions[i].iHeight,
+                  resolutions[i].iScreen,
+                  resolutions[i].iScreenWidth,
+                  resolutions[i].iScreenHeight,
+                  resolutions[i].dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
+                  resolutions[i].fRefreshRate);
+
+        CServiceBroker::GetWinSystem()->GetGfxContext().ResetOverscan(resolutions[i]);
+        CDisplaySettings::GetInstance().AddResolutionInfo(resolutions[i]);
+      }
     }
   }
 
@@ -230,14 +258,23 @@ void CWinSystemGbm::WaitVBlank()
   m_DRM->WaitVBlank();
 }
 
+bool CWinSystemGbm::UseLimitedColor()
+{
+  return CServiceBroker::GetSettings().GetBool(CSettings::SETTING_VIDEOSCREEN_LIMITEDRANGE);
+}
+
 bool CWinSystemGbm::Hide()
 {
-  return false;
+  bool ret = m_DRM->SetActive(false);
+  FlipPage(false, false);
+  return ret;
 }
 
 bool CWinSystemGbm::Show(bool raise)
 {
-  return true;
+  bool ret = m_DRM->SetActive(true);
+  FlipPage(false, false);
+  return ret;
 }
 
 void CWinSystemGbm::Register(IDispResource *resource)
@@ -265,4 +302,3 @@ void CWinSystemGbm::OnLostDevice()
       (*i)->OnLostDisplay();
   }
 }
-

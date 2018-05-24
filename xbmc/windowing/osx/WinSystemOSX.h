@@ -64,9 +64,6 @@ public:
   void Register(IDispResource *resource) override;
   void Unregister(IDispResource *resource) override;
 
-  virtual int GetNumScreens() override;
-  virtual int GetCurrentScreen() override;
-
   virtual std::unique_ptr<CVideoSync> GetVideoSync(void *clock) override;
 
   void        WindowChangedScreen();
@@ -79,6 +76,10 @@ public:
 
   void* GetCGLContextObj();
   void* GetNSOpenGLContext();
+  void GetConnectedOutputs(std::vector<std::string> *outputs);
+
+  // winevents override
+  bool MessagePump() override;
 
 protected:
   virtual std::unique_ptr<KODI::WINDOWING::IOSScreenSaver> GetOSScreenSaverImpl() override;
@@ -88,7 +89,7 @@ protected:
   void* CreateFullScreenContext(int screen_index, void* shareCtx);
   void  GetScreenResolution(int* w, int* h, double* fps, int screenIdx);
   void  EnableVSync(bool enable);
-  bool  SwitchToVideoMode(int width, int height, double refreshrate, int screenIdx);
+  bool  SwitchToVideoMode(int width, int height, double refreshrate);
   void  FillInVideoModes();
   bool  FlushBuffer(void);
   bool  IsObscured(void);

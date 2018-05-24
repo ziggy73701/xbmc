@@ -214,7 +214,7 @@ CAddonCallbacksGUI::~CAddonCallbacksGUI()
 void CAddonCallbacksGUI::Lock()
 {
   if (iXBMCGUILockRef == 0)
-    g_graphicsContext.lock();
+    CServiceBroker::GetWinSystem()->GetGfxContext().lock();
   iXBMCGUILockRef++;
 }
 
@@ -224,23 +224,23 @@ void CAddonCallbacksGUI::Unlock()
   {
     iXBMCGUILockRef--;
     if (iXBMCGUILockRef == 0)
-      g_graphicsContext.unlock();
+      CServiceBroker::GetWinSystem()->GetGfxContext().unlock();
   }
 }
 
 int CAddonCallbacksGUI::GetScreenHeight()
 {
-  return g_graphicsContext.GetHeight();
+  return CServiceBroker::GetWinSystem()->GetGfxContext().GetHeight();
 }
 
 int CAddonCallbacksGUI::GetScreenWidth()
 {
-  return g_graphicsContext.GetWidth();
+  return CServiceBroker::GetWinSystem()->GetGfxContext().GetWidth();
 }
 
 int CAddonCallbacksGUI::GetVideoResolution()
 {
-  return (int)g_graphicsContext.GetVideoResolution();
+  return (int)CServiceBroker::GetWinSystem()->GetGfxContext().GetVideoResolution();
 }
 
 GUIHANDLE CAddonCallbacksGUI::Window_New(void *addonData, const char *xmlFilename, const char *defaultSkin, bool forceFallback, bool asDialog)
@@ -1780,10 +1780,12 @@ int CAddonCallbacksGUI::Dialog_Numeric_ShowAndVerifyPassword(char &strPassword, 
 bool CAddonCallbacksGUI::Dialog_Numeric_ShowAndVerifyInput(char &strPassword, unsigned int iMaxStringSize, const char *strHeading, bool bGetUserInput)
 {
   std::string str = &strPassword;
-  bool bRet = CGUIDialogNumeric::ShowAndVerifyInput(str, strHeading, bGetUserInput);
-  if (bRet)
+  if (CGUIDialogNumeric::ShowAndVerifyInput(str, strHeading, bGetUserInput) == InputVerificationResult::SUCCESS)
+  {
     strncpy(&strPassword, str.c_str(), iMaxStringSize);
-  return bRet;
+    return true;
+  }
+  return false;
 }
 
 bool CAddonCallbacksGUI::Dialog_Numeric_ShowAndGetTime(tm &time, const char *strHeading)

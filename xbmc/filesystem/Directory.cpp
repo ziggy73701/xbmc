@@ -84,6 +84,11 @@ public:
     m_id = CJobManager::GetInstance().AddJob(new CGetJob(imp, m_result)
                                            , NULL
                                            , CJob::PRIORITY_HIGH);
+    if (m_id == 0)
+    {
+      CGetJob job(imp, m_result);
+      job.DoWork();
+    }
   }
  ~CGetDirectory()
   {
@@ -121,34 +126,52 @@ CDirectory::CDirectory() = default;
 
 CDirectory::~CDirectory() = default;
 
-bool CDirectory::GetDirectory(const std::string& strPath, CFileItemList &items, const std::string &strMask /*=""*/, int flags /*=DIR_FLAG_DEFAULTS*/, bool allowThreads /* = false */)
+bool CDirectory::GetDirectory(const std::string& strPath, CFileItemList &items, const std::string &strMask, int flags)
 {
   CHints hints;
   hints.flags = flags;
   hints.mask = strMask;
-  return GetDirectory(strPath, items, hints, allowThreads);
+  const CURL pathToUrl(strPath);
+  return GetDirectory(pathToUrl, items, hints);
 }
 
-bool CDirectory::GetDirectory(const std::string& strPath, CFileItemList &items, const CHints &hints, bool allowThreads)
+bool CDirectory::GetDirectory(const std::string& strPath, std::shared_ptr<IDirectory> pDirectory,
+                              CFileItemList &items, const std::string &strMask, int flags)
+{
+  CHints hints;
+  hints.flags = flags;
+  hints.mask = strMask;
+  const CURL pathToUrl(strPath);
+  return GetDirectory(pathToUrl, pDirectory, items, hints);
+}
+
+bool CDirectory::GetDirectory(const std::string& strPath, CFileItemList &items, const CHints &hints)
 {
   const CURL pathToUrl(strPath);
-  return GetDirectory(pathToUrl, items, hints, allowThreads);
+  return GetDirectory(pathToUrl, items, hints);
 }
 
-bool CDirectory::GetDirectory(const CURL& url, CFileItemList &items, const std::string &strMask /*=""*/, int flags /*=DIR_FLAG_DEFAULTS*/, bool allowThreads /* = false */)
+bool CDirectory::GetDirectory(const CURL& url, CFileItemList &items, const std::string &strMask, int flags)
 {
   CHints hints;
   hints.flags = flags;
   hints.mask = strMask;
-  return GetDirectory(url, items, hints, allowThreads);
+  return GetDirectory(url, items, hints);
 }
 
-bool CDirectory::GetDirectory(const CURL& url, CFileItemList &items, const CHints &hints, bool allowThreads)
+bool CDirectory::GetDirectory(const CURL& url, CFileItemList &items, const CHints &hints)
+{
+  CURL realURL = URIUtils::SubstitutePath(url);
+  std::shared_ptr<IDirectory> pDirectory(CDirectoryFactory::Create(realURL));
+  return CDirectory::GetDirectory(url, pDirectory, items, hints);
+}
+
+bool CDirectory::GetDirectory(const CURL& url, std::shared_ptr<IDirectory> pDirectory,
+                              CFileItemList &items, const CHints &hints)
 {
   try
   {
     CURL realURL = URIUtils::SubstitutePath(url);
-    std::shared_ptr<IDirectory> pDirectory(CDirectoryFactory::Create(realURL));
     if (!pDirectory.get())
       return false;
 
@@ -175,30 +198,15 @@ bool CDirectory::GetDirectory(const CURL& url, CFileItemList &items, const CHint
         if (CPasswordManager::GetInstance().IsURLSupported(authUrl) && authUrl.GetUserName().empty())
           CPasswordManager::GetInstance().AuthenticateURL(authUrl);
 
-        if (g_application.IsCurrentThread() && allowThreads && !URIUtils::IsSpecial(pathToUrl))
-        {
-          CSingleExit ex(g_graphicsContext);
-
-          CGetDirectory get(pDirectory, authUrl, url);
-
-          if (!CGUIDialogBusy::WaitOnEvent(get.GetEvent(), TIME_TO_BUSY_DIALOG))
-          {
-            cancel = true;
-            pDirectory->CancelDirectory();
-          }
-
-          result = get.GetDirectory(items);
-        }
-        else
-        {
-          items.SetURL(url);
-          result = pDirectory->GetDirectory(authUrl, items);
-        }
+        items.SetURL(url);
+        result = pDirectory->GetDirectory(authUrl, items);
 
         if (!result)
         {
           if (!cancel)
           {
+            // @TODO ProcessRequirements() can bring up the keyboard input dialog
+            // filesystem must not depend on GUI
             if (g_application.IsCurrentThread() && pDirectory->ProcessRequirements())
             {
               authUrl.SetDomain("");

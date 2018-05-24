@@ -36,6 +36,7 @@
 #include "Seat.h"
 #include "Signals.h"
 #include "ShellSurface.h"
+#include "platform/linux/OptionalsReg.h"
 #include "threads/CriticalSection.h"
 #include "threads/Event.h"
 #include "utils/ActorProtocol.h"
@@ -74,6 +75,8 @@ public:
   void FinishModeChange(RESOLUTION res) override;
   void FinishWindowResize(int newWidth, int newHeight) override;
 
+  bool UseLimitedColor() override;
+
   void UpdateResolutions() override;
   int GetNumScreens() override;
   int GetCurrentScreen() override;
@@ -99,6 +102,9 @@ public:
 
   // Like CWinSystemX11
   void GetConnectedOutputs(std::vector<std::string>* outputs);
+
+  // winevents override
+  bool MessagePump() override;
 
 protected:
   std::unique_ptr<KODI::WINDOWING::IOSScreenSaver> GetOSScreenSaverImpl() override;
@@ -296,6 +302,8 @@ private:
   std::uint32_t m_lastAckedSerial{0u};
   /// Whether this is the first call to SetFullScreen
   bool m_isInitialSetFullScreen{true};
+
+  std::unique_ptr<OPTIONALS::CLircContainer, OPTIONALS::delete_CLircContainer> m_lirc;
 };
 
 

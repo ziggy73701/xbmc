@@ -67,6 +67,11 @@
 #pragma comment(lib, "Pdh.lib")
 #endif
 
+#ifdef TARGET_WINDOWS_STORE
+#include <winrt/Windows.Foundation.Metadata.h>
+#include <winrt/Windows.System.Diagnostics.h>
+#endif
+
 // Defines to help with calls to CPUID
 #define CPUID_INFOTYPE_STANDARD 0x00000001
 #define CPUID_INFOTYPE_EXTENDED 0x80000001
@@ -739,26 +744,17 @@ bool CCPUInfo::readProcStat(unsigned long long& user, unsigned long long& nice,
     for (std::map<int, CoreInfo>::iterator it = m_cores.begin(); it != m_cores.end(); ++it)
       it->second.m_fPct = double(m_lastUsedPercentage); // use CPU average as fallback
 #endif // TARGET_WINDOWS_DESKTOP
-#if defined(TARGET_WINDOWS_STORE) && defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
-  // introduced in 10.0.15063.0
-  if (Windows::Foundation::Metadata::ApiInformation::IsTypePresent("Windows.System.Diagnostics.SystemDiagnosticInfo"))
+#if defined(TARGET_WINDOWS_STORE)
+  if (winrt::Windows::Foundation::Metadata::ApiInformation::IsTypePresent(L"Windows.System.Diagnostics.SystemDiagnosticInfo"))
   {
-    try
-    {
-      auto diagnostic = Windows::System::Diagnostics::SystemDiagnosticInfo::GetForCurrentSystem();
-      auto usage = diagnostic->CpuUsage;
-      auto report = usage->GetReport();
+    auto diagnostic = winrt::Windows::System::Diagnostics::SystemDiagnosticInfo::GetForCurrentSystem();
+    auto usage = diagnostic.CpuUsage();
+    auto report = usage.GetReport();
 
-      user = report->UserTime.Duration;
-      idle = report->IdleTime.Duration;
-      system = report->KernelTime.Duration - idle;
-      return true;
-    }
-    catch (...)
-    {
-      // requires Win10 CU (10.0.15063) or later
-      return false;
-    }
+    user = report.UserTime().count();
+    idle = report.IdleTime().count();
+    system = report.KernelTime().count() - idle;
+    return true;
   }
   else
     return false;

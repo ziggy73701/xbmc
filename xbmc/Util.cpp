@@ -60,7 +60,7 @@
 #endif
 #include "profiles/ProfilesManager.h"
 #include "utils/RegExp.h"
-#include "guilib/GraphicContext.h"
+#include "windowing/GraphicContext.h"
 #include "guilib/TextureManager.h"
 #include "utils/fstrcmp.h"
 #include "storage/MediaManager.h"
@@ -687,7 +687,7 @@ void CUtil::ClearSubtitles()
 {
   //delete cached subs
   CFileItemList items;
-  CDirectory::GetDirectory("special://temp/",items);
+  CDirectory::GetDirectory("special://temp/",items, "", DIR_FLAG_DEFAULTS);
   for( int i=0;i<items.Size();++i)
   {
     if (!items[i]->m_bIsFolder)
@@ -1550,7 +1550,7 @@ bool CUtil::SupportsReadFileOperations(const std::string& strPath)
 
 std::string CUtil::GetDefaultFolderThumb(const std::string &folderThumb)
 {
-  if (g_TextureManager.HasTexture(folderThumb))
+  if (CServiceBroker::GetGUI()->GetTextureManager().HasTexture(folderThumb))
     return folderThumb;
   return "";
 }
@@ -1559,9 +1559,9 @@ void CUtil::GetSkinThemes(std::vector<std::string>& vecTheme)
 {
   static const std::string TexturesXbt = "Textures.xbt";
 
-  std::string strPath = URIUtils::AddFileToFolder(g_graphicsContext.GetMediaDir(), "media");
+  std::string strPath = URIUtils::AddFileToFolder(CServiceBroker::GetWinSystem()->GetGfxContext().GetMediaDir(), "media");
   CFileItemList items;
-  CDirectory::GetDirectory(strPath, items);
+  CDirectory::GetDirectory(strPath, items, "", DIR_FLAG_DEFAULTS);
   // Search for Themes in the Current skin!
   for (int i = 0; i < items.Size(); ++i)
   {

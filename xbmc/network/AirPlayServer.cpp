@@ -176,7 +176,7 @@ void CAirPlayServer::Announce(AnnouncementFlag flag, const char *sender, const c
 
       ServerInstance->AnnounceToClients(EVENT_STOPPED);
     }
-    else if (strcmp(message, "OnPlay") == 0)
+    else if (strcmp(message, "OnPlay") == 0 || strcmp(message, "OnResume") == 0)
     {
       ServerInstance->AnnounceToClients(EVENT_PLAYING);
     }
@@ -227,7 +227,7 @@ void ClearPhotoAssetCache()
   CLog::Log(LOGINFO, "AIRPLAY: Cleaning up photoassetcache");
   // remove all cached photos
   CFileItemList items;
-  XFILE::CDirectory::GetDirectory("special://temp/", items);
+  XFILE::CDirectory::GetDirectory("special://temp/", items, "", XFILE::DIR_FLAG_DEFAULTS);
   
   for (int i = 0; i < items.Size(); ++i)
   {
